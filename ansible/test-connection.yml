@@ -1,0 +1,20 @@
+---
+- name: Test Connection to EC2 Servers
+  hosts: webservers
+  gather_facts: no
+
+  tasks:
+    - name: Ping servers
+      ping:
+
+    - name: Get server information
+      setup:
+      register: facts
+
+    - name: Display server information
+      debug:
+        msg: |
+          Server: {{ inventory_hostname }}
+          IP: {{ ansible_host }}
+          OS: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}
+          Architecture: {{ ansible_facts['architecture'] }}

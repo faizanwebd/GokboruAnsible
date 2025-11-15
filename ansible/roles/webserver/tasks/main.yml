@@ -1,0 +1,88 @@
+---
+- name: Install and configure web server dependencies
+  apt:
+    name:
+      - nginx
+      - git
+      - curl
+      - software-properties-common
+    state: present
+    update_cache: yes
+
+- name: Install Node.js 18.x
+  shell: |
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    apt-get install -y nodejs
+  args:
+    creates: /usr/bin/node
+
+- name: Verify Node.js and npm installation
+  command: "{{ item }}"
+  loop:
+    - node --version
+    - npm --version
+  register: versions
+
+- name: Display Node.js and npm versions
+  debug:
+    msg: "{{ versions.results | map(attribute='stdout') | list }}"
+
+- name: Create application directory
+  file:
+    path: /var/www/gokboru
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: "0755"
+
+- name: Copy application files to remote server
+  synchronize:
+    src: "{{ playbook_dir }}/../"
+    dest: /var/www/gokboru/
+    delete: yes
+    recursive: yes
+    rsync_opts:
+      - "--exclude=node_modules"
+      - "--exclude=dist"
+      - "--exclude=.git"
+      - "--exclude=ansible"
+
+- name: Install npm dependencies
+  npm:
+    path: /var/www/gokboru
+    state: present
+  become_user: ubuntu
+
+- name: Build React application
+  command: npm run build
+  args:
+    chdir: /var/www/gokboru
+  become_user: ubuntu
+
+- name: Configure Nginx
+  template:
+    src: nginx-site.conf.j2
+    dest: /etc/nginx/sites-available/gokboru
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart nginx
+
+- name: Enable Nginx site
+  file:
+    src: /etc/nginx/sites-available/gokboru
+    dest: /etc/nginx/sites-enabled/gokboru
+    state: link
+  notify: restart nginx
+
+- name: Remove default Nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: restart nginx
+
+- name: Ensure Nginx is started and enabled
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes

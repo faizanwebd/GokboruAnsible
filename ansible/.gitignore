@@ -1,0 +1,13 @@
+# Ignore SSH keys
+*.pem
+*.key
+
+# Ignore Ansible retry files
+*.retry
+
+# Ignore logs
+*.log
+
+# Ignore temporary files
+.ansible/
+*.tmp
